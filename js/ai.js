@@ -16,7 +16,7 @@ export const SKILLS = {
 };
 
 // ---------- shopping ----------
-// Returns a list of actions [{do: 'chores'|'buy'|'sell'|'piggy'|'catapult'|'rebuild'|'glue', ...}]
+// Returns a list of actions [{do: 'chores'|'buy'|'sell'|'piggy'|'catapult'|'rebuild'|'tape'|'box', ...}]
 // that the game carries out one by one (so they can be shown).
 export function shop(me, enemy, market, castle, rnd) {
   const P = me.personality, acts = [];
@@ -42,6 +42,15 @@ export function shop(me, enemy, market, castle, rnd) {
     const budget = P === 'hoarder' ? 0.35 : P === 'warmonger' ? 0.3 : 0.5;
     if ((missing >= 3 || flagDown) && can(cost) && cost <= money * budget + 6) { acts.push({ do: 'rebuild' }); pay(cost); }
   }
+  // cardboard: a torn keep box first, then tape on the worst dents, then the box for the wall
+  me.boxes.forEach((g, slot) => {
+    if (g.built || slot === 2) return;
+    if (can(RULES.boxPrice)) { acts.push({ do: 'box', slot }); pay(RULES.boxPrice); }
+  });
+  // one strip of tape on each dented box (the game tapes the most dented one first)
+  const dented = me.boxes.filter((g) => g.built && g.hp < RULES.boxHp).length;
+  for (let k = 0; k < dented; k++) if (can(RULES.tapePrice + reserve)) { acts.push({ do: 'tape' }); pay(RULES.tapePrice); }
+  if (!me.boxes[2].built && P !== 'warmonger' && money >= RULES.boxPrice + 16) { acts.push({ do: 'box', slot: 2 }); pay(RULES.boxPrice); }
   // piggy banks and a second catapult
   const empty = me.piggies.findIndex((g) => !g.built);
   if (empty >= 0) {
@@ -50,8 +59,6 @@ export function shop(me, enemy, market, castle, rnd) {
     if (money >= keen) { acts.push({ do: 'piggy', slot: empty }); pay(RULES.piggyPrice); }
   }
   if (!me.catapults[1] && P === 'warmonger' && money >= RULES.catapultPrice + 12 && me.toys >= 6) { acts.push({ do: 'catapult', slot: 1 }); pay(RULES.catapultPrice); }
-  // glue when the other side has heavy ammo
-  if (!me.glue && enemy.ammo.marble >= 2 && money > 30 && P !== 'warmonger' && rnd() < 0.5) { acts.push({ do: 'glue' }); pay(market.price('glue')); }
   // ammo
   const stock = { ...me.ammo };
   const target = P === 'warmonger' ? { marble: 3, eraser: 1, paper: 2 } : P === 'hoarder' ? { paper: 5, eraser: 2, marble: 0 } : { eraser: 3, paper: 3, marble: 1 };

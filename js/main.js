@@ -125,7 +125,7 @@ function showResults(over) {
   const P = game.players;
   const row = (label, f) => `<tr><th>${label}</th>${P.map((p) => `<td>${f(p)}</td>`).join('')}</tr>`;
   $('#results-stats').innerHTML = `<table><thead><tr><th></th>${P.map((p, i) => `<th style="color:${TEAM[i].hex}">${TEAM[i].name}${p.type === 'cpu' ? `<small>${PERSONALITIES[p.personality].name}</small>` : ''}</th>`).join('')}</tr></thead><tbody>
-    ${row('Shots', (p) => p.stats.shots)}${row('Blocks knocked down', (p) => p.stats.blocksKnocked)}${row('Piggy banks smashed', (p) => p.stats.piggiesSmashed)}${row('Coins earned', (p) => p.stats.earned)}${row('Toys at the end', (p) => p.toys)}</tbody></table>`;
+    ${row('Shots', (p) => p.stats.shots)}${row('Blocks knocked down', (p) => p.stats.blocksKnocked)}${row('Boxes torn open', (p) => p.stats.boxesTorn)}${row('Piggy banks smashed', (p) => p.stats.piggiesSmashed)}${row('Coins earned', (p) => p.stats.earned)}${row('Toys at the end', (p) => p.toys)}</tbody></table>`;
   showScreen('results');
   confetti(TEAM[over.winner].hex);
 }

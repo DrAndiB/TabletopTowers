@@ -23,12 +23,19 @@ export const SLOTS = {
     { x: -40, y: 0, launch: [-37, 14], name: 'Back catapult' },
   ],
   piggies: [
-    { x: -13, y: 32, name: 'Keep roof' },
+    { x: -12, y: 36, name: 'Keep roof' },
     { x: 21, y: 0, name: 'Courtyard' },
     { x: -54, y: 0, name: 'Back yard' },
   ],
   throne: { x: -14, y: 14 },
   flag: { x: -23, y: 40 },
+  // cardboard boxes: they soak up shots and wear out (front of the throne room, on the keep roof,
+  // and one you can buy for the gap between the merlons on the wall)
+  boxes: [
+    { x: -4, y: 14, w: 6, h: 16, mass: 3.0, name: 'Keep front', label: 'TOYS' },
+    { x: -13.5, y: 30, w: 25, h: 6, mass: 2.6, name: 'Keep roof', label: 'FRAGILE' },
+    { x: 34, y: 16, w: 7.6, h: 6, mass: 0.8, name: 'Wall', label: 'SHOES' },
+  ],
 };
 export const TEDDY = { w: 8, h: 11, d: 7 };
 export const THRONE = { seat: [10, 4, 8], back: [10, 10, 2] };
@@ -47,18 +54,17 @@ export function castlePlan() {
     else { add('cube', W + 2, y, 'wall'); add('brick', W + 8, y, 'wall'); add('cube', W + 14, y, 'wall'); }
   }
   add('cube', W + 2, 16, 'wall'); add('cube', W + 14, 16, 'wall');
-  // the keep: a solid ground floor, a floor board, two towers round the throne room, the roof board
+  // the keep: a solid ground floor, a floor board and a tower at the back of the throne room; the
+  // front and the roof of the throne room are cardboard boxes (SLOTS.boxes)
   for (let row = 0; row < 3; row++) {
     const y = row * 4;
     if (row % 2 === 0) { add('brick', -22, y, 'keep'); add('brick', -14, y, 'keep'); add('brick', -6, y, 'keep'); }
     else { add('cube', -24, y, 'keep'); add('brick', -18, y, 'keep'); add('brick', -10, y, 'keep'); add('cube', -4, y, 'keep'); }
   }
   add('board', -14, 12, 'keep');
-  add('tower', -24, 14, 'keep'); add('tower', -4, 14, 'keep');
-  add('board', -14, 30, 'keep');
-  // on the roof: the flag tower at the back, a merlon at the front
-  add('cube', -23, 32, 'roof'); add('cube', -23, 36, 'roof');
-  add('cube', -4, 32, 'roof');
+  add('tower', -24, 14, 'keep');
+  // on the roof box: a block for the flag at the back
+  add('cube', -23, 36, 'roof');
   return P;
 }
 

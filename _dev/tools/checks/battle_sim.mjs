@@ -5,7 +5,7 @@ import { Physics } from '../../../js/physics.js';
 import { Castle } from '../../../js/castle.js';
 import { newPlayer } from '../../../js/economy.js';
 import { aim } from '../../../js/ai.js';
-import { launchVelocity, AMMO_ORDER, WIND_MAX } from '../../../js/ballistics.js';
+import { launchVelocity, AMMO_ORDER, WIND_MAX, AMMO } from '../../../js/ballistics.js';
 import { rng } from '../../../js/util.js';
 
 const shots = +(process.argv[2] || 12), skill = process.argv[3] || 'hard', seed = +(process.argv[4] || 3);
@@ -17,6 +17,8 @@ const castles = [];
 castles[0] = new Castle(phys, 0, { other: () => castles[1] });
 castles[1] = new Castle(phys, 1, { other: () => castles[0] });
 castles.forEach((c, i) => c.build(players[i]));
+phys.onBoxHit = (box, shot, speed) => castles[box.userData.side].hitBox(box, shot.userData.ammo, AMMO[shot.userData.ammo].damage, speed);
+const boxes = (s) => players[s].boxes.map((g) => (g.built ? g.hp : '-')).join(',');
 
 // 1. standing still while awake
 phys.wakeAll();
@@ -47,5 +49,5 @@ for (let n = 0; n < shots; n++) {
   while (!phys.settled() && steps < 120 * 9) { phys.step(); steps++; }
   const ms = performance.now() - t;
   for (const b of [...phys.projectiles]) phys.remove(b);
-  console.log(`${side ? 'Blue' : 'Red '} ${shot.ammo.padEnd(6)} at ${shot.target.kind.padEnd(6)} wind ${phys.wind.toFixed(0).padStart(3)} a=${shot.angle.toFixed(1)} p=${shot.power.toFixed(3)} score ${shot.score.toFixed(1).padStart(6)} aim ${aimMs.toFixed(0)}ms | ${(steps / 120).toFixed(1)} s, ${(ms / Math.max(1, steps)).toFixed(2)} ms/step | blocks ${before}→${enemy.standing()} teddy ${enemy.teddyOk() ? 'ok' : 'DOWN'} flag ${enemy.flagUp() ? 'up' : 'DOWN'} piggies ${[0, 1, 2].map((s) => (enemy.piggies[s] ? (enemy.piggyOk(s) ? 'ok' : 'X') : '-')).join(',')} | own ${castles[side].standing()}`);
+  console.log(`${side ? 'Blue' : 'Red '} ${shot.ammo.padEnd(6)} at ${shot.target.kind.padEnd(6)} wind ${phys.wind.toFixed(0).padStart(3)} a=${shot.angle.toFixed(1)} p=${shot.power.toFixed(3)} score ${shot.score.toFixed(1).padStart(6)} aim ${aimMs.toFixed(0)}ms | ${(steps / 120).toFixed(1)} s, ${(ms / Math.max(1, steps)).toFixed(2)} ms/step | blocks ${before}→${enemy.standing()} teddy ${enemy.teddyOk() ? 'ok' : 'DOWN'} flag ${enemy.flagUp() ? 'up' : 'DOWN'} piggies ${[0, 1, 2].map((s) => (enemy.piggies[s] ? (enemy.piggyOk(s) ? 'ok' : 'X') : '-')).join(',')} boxes ${boxes(1 - side)} | own ${castles[side].standing()}`);
 }

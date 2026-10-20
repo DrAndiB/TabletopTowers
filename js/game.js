@@ -7,7 +7,7 @@ import { makeKit } from './kit.js';
 import { Physics } from './physics.js';
 import { Castle } from './castle.js';
 import { SLOTS, worldX, sideDir } from './layout.js';
-import { AMMO_ORDER, flight, launchVelocity, WIND_MAX, ANGLE_MIN, ANGLE_MAX } from './ballistics.js';
+import { AMMO, AMMO_ORDER, flight, launchVelocity, WIND_MAX, ANGLE_MIN, ANGLE_MAX } from './ballistics.js';
 import * as E from './economy.js';
 import { shop as aiShop, aim as aiAim } from './ai.js';
 import * as P from './pieces.js';
@@ -76,6 +76,7 @@ export class Game {
     this.phys = new Physics();
     this.phys.onImpact = (a, b, v) => this.impact(a, b, v);
     this.phys.onLost = (b) => this.removeVisual(b);
+    this.phys.onBoxHit = (box, shot, speed) => this.boxHit(box, shot, speed);
     this.players = cfg.players.map((p, i) => E.newPlayer(i, p));
     this.market = new E.Market();
     this.castles = [];
@@ -136,6 +137,7 @@ export class Game {
     else if (ud.kind === 'throne') v = { obj: P.throne(ud.side) };
     else if (ud.kind === 'teddy') { const t = P.teddy(ud.side); v = { obj: t.group, teddy: t }; }
     else if (ud.kind === 'piggy') v = { obj: P.piggy(ud.side) };
+    else if (ud.kind === 'box') { const bx = P.cardboardBox(ud.side, ud.slot); v = { obj: bx.group, box: bx }; bx.setDamage(1 - this.players[ud.side].boxes[ud.slot].hp / E.RULES.boxHp); }
     else if (ud.kind === 'flag') { const f = P.flag(ud.side); v = { obj: f.group, flag: f }; }
     else if (ud.kind === 'catapult') { const c = P.catapult(ud.side); v = { obj: c.group, catapult: c, static: true }; }
     if (!v) return;
@@ -261,6 +263,32 @@ export class Game {
     else this.sound.clack(v, pan, deep);
   }
 
+  // a shot thumps into a cardboard box: it dents, or tears and is gone
+  boxHit(box, shot, speed) {
+    const ammo = shot.userData.ammo;
+    const r = this.castles[box.userData.side].hitBox(box, ammo, AMMO[ammo].damage, speed);
+    this.boxFx(box, shot, r, speed);
+    return r;
+  }
+  boxFx(box, shot, r, speed) {
+    const side = box.userData.side, slot = box.userData.slot;
+    const { x, y, z } = box.position;
+    const v = this.visuals.get(box);
+    const pan = clamp(x / 200, -0.9, 0.9);
+    this.sound.cardboard(speed / 40, pan);
+    this.particles.emit(shot.position.x, shot.position.y, 3, { color: 0xc99d66, n: 8, size: 1.2, life: 0.9, spread: 30, up: 30, grav: 90, alpha: 1 });
+    if (r.torn) {
+      this.sound.rip(pan);
+      this.particles.emit(x, y, z, { color: 0xc99d66, n: 30, size: 1.8, life: 1.4, spread: 60, up: 50, grav: 100, alpha: 1 });
+      this.puff(x, y, z, 0xe6cfa6, 10);
+      if (this.shotLog) this.shotLog.boxes[side].push(SLOTS.boxes[slot].name);
+    } else {
+      if (v) v.box.setDamage(1 - r.hp / E.RULES.boxHp);
+      this.hud.toast(`${P.TEAM[side].name}'s ${SLOTS.boxes[slot].name.toLowerCase()} box: dented, ${fmtHp(r.hp)} of ${E.RULES.boxHp} left`, 'info', 2.2);
+    }
+    this.refreshHud();
+  }
+
   smashPiggy(b) {
     const ud = b.userData;
     if (ud.smashed) return;
@@ -294,6 +322,7 @@ export class Game {
 
   startTurn(side) {
     this.turn = side;
+    this.turnNo = (this.turnNo || 0) + 1;
     const p = this.players[side], other = this.players[1 - side];
     this.wind = Math.round((this.rnd() * 2 - 1) * WIND_MAX * (this.flags.gust ? 1.7 : 1));
     this.phys.wind = this.wind;
@@ -353,12 +382,20 @@ export class Game {
     const p = this.players[side], c = this.castles[side];
     const missing = c.missing().length;
     return {
-      missing, flagDown: p.flagDown, rebuildCost: this.rebuildCost(side),
+      missing, flagDown: p.flagDown, rebuildCost: this.rebuildCost(side), displaced: c.displacedBoxes().length,
+      boxes: p.boxes, tapeTarget: this.tapeTarget(side), boxSlot: p.boxes.findIndex((g) => !g.built),
       piggySlot: p.piggies.findIndex((g) => !g.built), canCatapult: !p.catapults[1],
       income: E.income(p), market: this.market,
     };
   }
   rebuildCost(side) { const p = this.players[side], n = this.castles[side].missing().length; return n || p.flagDown ? this.market.blockCost(n) + (p.flagDown ? 2 : 0) : 0; }
+  // the most dented box that hasn't had its strip of tape this turn
+  tapeTarget(side) {
+    const p = this.players[side];
+    let best = -1;
+    p.boxes.forEach((g, i) => { if (g.built && g.hp < E.RULES.boxHp && g.taped !== this.turnNo && (best < 0 || g.hp < p.boxes[best].hp)) best = i; });
+    return best;
+  }
 
   // a shop action by the player whose turn it is: returns a message or null if it couldn't be done
   act(a) {
@@ -371,7 +408,6 @@ export class Game {
       if (!E.spend(p, price)) { this.sound.nope(); return null; }
       p.stats.spent += price;
       if (a.item === 'snack') p.snacks++;
-      else if (a.item === 'glue') { p.glue = E.RULES.glueShots; c.setGlue(true); this.glueFx(side); }
       else p.ammo[a.item]++;
       m.bought(a.item);
       this.stall.bump(a.item);
@@ -402,24 +438,41 @@ export class Game {
       c.addCatapult(1);
       this.sound.pop();
       msg = 'A second catapult, at the back';
+    } else if (a.do === 'tape') {
+      const slot = this.tapeTarget(side);
+      if (slot < 0 || !E.spend(p, E.RULES.tapePrice)) { this.sound.nope(); return null; }
+      p.stats.spent += E.RULES.tapePrice;
+      const g = p.boxes[slot];
+      g.hp = Math.min(E.RULES.boxHp, g.hp + E.RULES.tapeHp);
+      g.taped = this.turnNo;
+      const v = c.boxes[slot] && this.visuals.get(c.boxes[slot]);
+      if (v) v.box.setDamage(1 - g.hp / E.RULES.boxHp);
+      this.sound.tape();
+      this.stall.bump('box');
+      msg = `Taped up the ${SLOTS.boxes[slot].name.toLowerCase()} box (${fmtHp(g.hp)} of ${E.RULES.boxHp})`;
+    } else if (a.do === 'box') {
+      const slot = a.slot ?? p.boxes.findIndex((g) => !g.built);
+      if (slot < 0 || p.boxes[slot].built || !E.spend(p, E.RULES.boxPrice)) { this.sound.nope(); return null; }
+      p.stats.spent += E.RULES.boxPrice;
+      p.boxes[slot] = { built: true, hp: E.RULES.boxHp };
+      c.addBox(slot);
+      this.stall.bump('box');
+      this.sound.pop();
+      msg = `A new box (${SLOTS.boxes[slot].name.toLowerCase()})`;
     } else if (a.do === 'rebuild') {
-      const missing = c.missing(), cost = this.rebuildCost(side);
-      if ((!missing.length && !p.flagDown) || !E.spend(p, cost)) { this.sound.nope(); return null; }
+      const missing = c.missing(), cost = this.rebuildCost(side), moved = c.displacedBoxes().length;
+      if ((!missing.length && !p.flagDown && !moved) || !E.spend(p, cost)) { this.sound.nope(); return null; }
       p.stats.spent += cost;
       const flagToo = p.flagDown;
       c.rebuild(missing, { flag: flagToo });
       m.bought('block', missing.length);
       if (flagToo) { p.flagDown = false; p.morale = Math.min(100, p.morale + 4); }
-      if (c.glued) c.setGlue(true);
       this.sound.pick();
-      msg = `Rebuilt ${missing.length} block${missing.length === 1 ? '' : 's'}${flagToo ? ' and the flag' : ''}`;
+      msg = `Rebuilt ${missing.length} block${missing.length === 1 ? '' : 's'}${flagToo ? ' and the flag' : ''}${moved ? `, boxes back in place` : ''}`;
     }
     this.refreshHud();
     if (p.type === 'human') this.hud.showShop(side, this.shopInfo(side));
     return msg;
-  }
-  glueFx(side) {
-    for (const b of this.castles[side].blocks) if (b && b.world && this.rnd() < 0.3) this.particles.emit(b.position.x, b.position.y + 2, 4, { color: 0xfffbe8, n: 2, size: 1.2, life: 1, spread: 2, up: 4, grav: 10, alpha: 0.9 });
   }
 
   shopDone() { if (this.phase === 'shop') { this.sound.click(); this.setPhase('aim'); } }
@@ -469,7 +522,7 @@ export class Game {
     this.shot = { body, mesh, side, t: 0, landed: null, path: [[lx, ly]] };
     this.shotLog = {
       standing: this.castles.map((k) => k.standing()), flags: this.castles.map((k) => k.flagUp()),
-      piggies: [new Set(), new Set()],
+      piggies: [new Set(), new Set()], boxes: [[], []],
     };
     const cv = this.catapultView(side, a.slot);
     if (cv) { cv.fire(); cv.ammo.clear(); }
@@ -498,11 +551,9 @@ export class Game {
       const p = this.players[s], c = this.castles[s];
       const lost = Math.max(0, log.standing[s] - c.standing());
       const flagFell = log.flags[s] && !c.flagUp();
-      const out = E.takeDamage(p, s === this.turn ? null : shooter, { blocks: lost, piggies: [...log.piggies[s]], flagFell });
+      const out = E.takeDamage(p, s === this.turn ? null : shooter, { blocks: lost, piggies: [...log.piggies[s]], flagFell, boxes: log.boxes[s] });
       if (lost) lines.push({ text: `${P.TEAM[s].name} lost ${lost} block${lost === 1 ? '' : 's'}${s === this.turn ? ' (own goal!)' : ''}`, tone: s === this.turn ? 'bad' : 'good' });
       lines.push(...out);
-      // glue wears off with each enemy shot
-      if (s !== this.turn && p.glue > 0) { p.glue--; if (!p.glue) c.setGlue(false); }
     }
     if (!lines.length) lines.push({ text: 'Missed!', tone: 'info' });
     for (const l of lines) this.hud.toast(l.text, l.tone, 2.6);
@@ -578,7 +629,7 @@ export class Game {
       view.group.position.set(x, 0, -110);
       this.dynamic.add(view.group);
       this.cat = { view, x, z: -110, speed: 26, side: onWall ? s : null, swatted: false, t: 0, standing: this.castles.map((k) => k.standing()), flags: this.castles.map((k) => k.flagUp()) };
-      this.shotLog = { standing: this.cat.standing, flags: this.cat.flags, piggies: [new Set(), new Set()] };
+      this.shotLog = { standing: this.cat.standing, flags: this.cat.flags, piggies: [new Set(), new Set()], boxes: [[], []] };
       this.sound.meow();
       this.camGoal = { x, y: 24, width: 230, pitch: 0.24 };
     }
@@ -615,7 +666,7 @@ export class Game {
     const wait = ev.catDone != null ? ev.catDone + 1.5 : 3.4;
     if (ev.t > wait && this.phys.settled()) {
       if (ev.catDone != null || ev.key === 'sister') {
-        const log = this.shotLog || { standing: [0, 0], flags: [true, true], piggies: [new Set(), new Set()] };
+        const log = this.shotLog || { standing: [0, 0], flags: [true, true], piggies: [new Set(), new Set()], boxes: [[], []] };
         if (ev.key === 'sister' && !this.shotLog) log.standing = this.castles.map((k) => k.standing() + 0);
         this.shotLog = null;
         for (let s = 0; s < 2; s++) {
@@ -841,10 +892,12 @@ export class Game {
 
   refreshHud() {
     if (!this.players) return;
-    this.players.forEach((p, s) => this.hud.setCastle(s, p, { standing: this.castles[s].standing(), total: this.castles[s].plan.length, glued: p.glue }));
+    this.players.forEach((p, s) => this.hud.setCastle(s, p, { standing: this.castles[s].standing(), total: this.castles[s].plan.length, boxes: p.boxes }));
     this.hud.setWind(this.wind);
   }
 }
+
+const fmtHp = (h) => (h % 1 ? h.toFixed(1) : String(h));
 
 // "buys 2 snacks and a marble, builds a piggy bank"
 function summarize(acts) {
@@ -860,7 +913,8 @@ function summarize(acts) {
     else if (d === 'piggy') other.push('builds a piggy bank');
     else if (d === 'catapult') other.push('builds a back catapult');
     else if (d === 'rebuild') other.push('rebuilds the castle');
-    else if (d === 'glue') other.push('glues the castle');
+    else if (d === 'tape') other.push(n[k] > 1 ? `tapes up boxes ${n[k]} times` : 'tapes up a box');
+    else if (d === 'box') other.push(n[k] > 1 ? `puts up ${n[k]} new boxes` : 'puts up a new box');
   }
   const parts = [];
   if (buys.length) parts.push('buys ' + list(buys));

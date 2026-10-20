@@ -9,9 +9,9 @@ export const SPEED_MIN = 80, SPEED_MAX = 270;
 
 // paper balls drift on the draft; marbles barely notice it but punch through walls
 export const AMMO = {
-  paper: { key: 'paper', name: 'Paper ball', short: 'Paper', price: 1, mass: 0.18, radius: 2.4, shape: 'sphere', drag: 0.55, wind: 1.6, restitution: 0.1, friction: 0.8, tip: 'Cheap and light. The draft blows it about.' },
-  eraser: { key: 'eraser', name: 'Eraser', short: 'Eraser', price: 3, mass: 1.1, size: [5.2, 2.4, 3.2], shape: 'box', drag: 0.12, wind: 0.6, restitution: 0.62, friction: 0.5, tip: 'Bounces. Good for knocking things off the top.' },
-  marble: { key: 'marble', name: 'Marble', short: 'Marble', price: 6, mass: 2.6, radius: 1.8, shape: 'sphere', drag: 0.04, wind: 0.25, restitution: 0.3, friction: 0.2, tip: 'Heavy glass. Goes straight through walls.' },
+  paper: { key: 'paper', name: 'Paper ball', short: 'Paper', price: 1, mass: 0.18, radius: 2.4, shape: 'sphere', drag: 0.55, wind: 1.6, restitution: 0.1, friction: 0.8, damage: 1, tip: 'Cheap and light. The draft blows it about.' },
+  eraser: { key: 'eraser', name: 'Eraser', short: 'Eraser', price: 3, mass: 1.1, size: [5.2, 2.4, 3.2], shape: 'box', drag: 0.12, wind: 0.6, restitution: 0.62, friction: 0.5, damage: 2, tip: 'Bounces. Good for knocking things off the top.' },
+  marble: { key: 'marble', name: 'Marble', short: 'Marble', price: 6, mass: 2.6, radius: 1.8, shape: 'sphere', drag: 0.04, wind: 0.25, restitution: 0.3, friction: 0.2, damage: 3, tip: 'Heavy glass. Knocks walls down and dents boxes most.' },
 };
 export const AMMO_ORDER = ['paper', 'eraser', 'marble'];
 

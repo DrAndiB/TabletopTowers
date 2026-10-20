@@ -15,6 +15,7 @@ export class Castle {
     this.plan = castlePlan();
     this.blocks = this.plan.map(() => null);
     this.piggies = [null, null, null];
+    this.boxes = [null, null, null];
     this.catapults = [null, null];
     this.throne = this.teddy = this.flag = null;
   }
@@ -30,6 +31,8 @@ export class Castle {
     this.homes = {
       teddy: this.teddy.position.clone(), throne: this.throne.position.clone(), flag: this.flag.position.clone(),
     };
+    this.player = player;
+    player.boxes.forEach((g, i) => { if (g.built) this.addBox(i); });
     player.piggies.forEach((g, i) => { if (g.built) this.addPiggy(i); });
     player.catapults.forEach((c, i) => { if (c) this.addCatapult(i); });
   }
@@ -47,6 +50,51 @@ export class Castle {
     return this.catapults[slot];
   }
   removePiggy(slot) { this.drop(this.piggies[slot]); this.piggies[slot] = null; }
+
+  // ---------- cardboard boxes ----------
+  addBox(slot) {
+    if (this.boxes[slot]) this.drop(this.boxes[slot]);
+    const s = SLOTS.boxes[slot];
+    this.clearSpot(worldX(this.side, s.x), s.y, s.w, s.h);
+    const b = this.phys.addBox(this.side, slot);
+    b.userData.home = b.position.clone();
+    this.boxes[slot] = this.add(b);
+    return b;
+  }
+  // a shot landed on a box: dents (paper 1, eraser 2, marble 3, less for a slow one). Returns
+  // {damage, hp, torn, keep}; a torn box is gone, whatever it held up comes down, and the shot goes
+  // on with `keep` of its speed (more when it had plenty of damage to spare).
+  hitBox(box, ammo, damage, speed) {
+    const g = this.player.boxes[box.userData.slot];
+    const k = Math.max(0.5, Math.min(1.25, speed / 150));
+    const d = Math.max(0.5, Math.round(damage * k * 2) / 2);
+    const before = g.hp;
+    g.hp = Math.max(0, g.hp - d);
+    const torn = g.hp <= 0;
+    const keep = torn ? Math.max(0.3, Math.min(0.85, 1 - before / (d + 0.5))) : 0.1;
+    if (torn) this.tearBox(box.userData.slot);
+    else this.phys.wakeAll();
+    return { damage: d, hp: g.hp, torn, keep, ammo };
+  }
+  tearBox(slot) {
+    const b = this.boxes[slot];
+    this.player.boxes[slot] = { built: false, hp: 0 };
+    if (!b) return;
+    b.userData.torn = true;
+    this.boxes[slot] = null;
+    this.drop(b);
+    this.phys.wakeAll();
+  }
+  boxOk(slot) { return !!this.boxes[slot] && !!this.boxes[slot].world && !this.boxes[slot].userData.torn; }
+  // boxes that got pushed or fell off their place (they keep their dents when put back)
+  displacedBoxes() {
+    return this.boxes.map((b, slot) => slot).filter((slot) => {
+      const b = this.boxes[slot];
+      if (!b || !b.world) return false;
+      const h = b.userData.home;
+      return Math.hypot(b.position.x - h.x, b.position.y - h.y, b.position.z - h.z) > 2 || this.phys.up(b).y < 0.95;
+    });
+  }
 
   // where a plan block's centre belongs, in world space
   home(i) { const p = this.plan[i]; return { x: worldX(this.side, p.x), y: p.y + p.h / 2, z: 0 }; }
@@ -98,6 +146,7 @@ export class Castle {
         if (other && other.intact(b.userData.index)) continue;
       }
       if (k === 'piggy' && b.userData.side === this.side && this.piggyOk(b.userData.slot)) continue;
+      if (k === 'box') continue;
       if (k === 'flag' && b === this.flag && this.flagUp()) continue;
       b.updateAABB();
       const a = b.aabb;
@@ -131,6 +180,8 @@ export class Castle {
       b.userData.index = i;
       this.blocks[i] = this.add(b);
     }
+    // boxes knocked off their place go back on it, dents and all
+    for (const slot of this.displacedBoxes()) { this.drop(this.boxes[slot]); this.boxes[slot] = null; this.addBox(slot); }
     if (flag) {
       if (this.flag) this.drop(this.flag);
       this.clearSpot(worldX(this.side, SLOTS.flag.x), SLOTS.flag.y, 4, 24);
@@ -139,20 +190,9 @@ export class Castle {
     return order;
   }
 
-  // everything of this castle, for sleeping/waking and glue
-  bodies() { return [...this.blocks, ...this.piggies, this.throne, this.teddy, this.flag].filter((b) => b && b.world); }
+  // everything of this castle
+  bodies() { return [...this.blocks, ...this.piggies, ...this.boxes, this.throne, this.teddy, this.flag].filter((b) => b && b.world); }
 
-  // glue: heavier, grippier blocks for a while
-  setGlue(on) {
-    for (const b of this.blocks) {
-      if (!b || !b.world) continue;
-      const base = b.userData.piece.w * b.userData.piece.h * 10 * 0.002;
-      b.mass = on ? base * 3 : base;
-      b.updateMassProperties();
-      b.userData.glued = on;
-    }
-    this.glued = on;
-  }
 
   // the parts the computer kids aim at (world points)
   targets() {

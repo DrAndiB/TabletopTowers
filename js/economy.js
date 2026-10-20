@@ -16,13 +16,18 @@ export const RULES = {
   catapultPrice: 20,
   toysPerSnack: 5,
   hungry: -6,
-  flagDownPerTurn: -2,
+  flagDownPerTurn: -1,
   flagFalls: -10,
   piggySmashed: -5,
-  blockLost: -1, blockLostCap: -8,
+  blockLost: -1, blockLostCap: -5,
+  cheerBlocks: 4,        // the shooter's toys cheer: +1 a block knocked down (up to this), +3 a box
+  cheerBig: 3,           // torn or piggy smashed, +5 for the flag
   happy: 70, birthdayChance: 0.35,
   sulky: 40, defect: 20,
-  glueShots: 2,
+  boxHp: 5,              // dents a cardboard box takes before it tears (paper 1, eraser 2, marble 3)
+  boxPrice: 5,
+  tapePrice: 2, tapeHp: 1,  // one strip per box per turn
+  boxTorn: -3,
 };
 
 // chores: what every idle toy earns, and what it does to morale each turn
@@ -39,7 +44,6 @@ export const GOODS = {
   eraser: { name: 'Eraser', base: AMMO.eraser.price },
   marble: { name: 'Marble', base: AMMO.marble.price },
   snack: { name: 'Snack', base: 2 },
-  glue: { name: 'Glue', base: 5 },
   block: { name: 'Block', base: 1 },
 };
 export const SELLABLE = ['paper', 'eraser', 'marble', 'snack'];
@@ -62,15 +66,15 @@ export function newPlayer(side, { type = 'human', personality = 'hoarder', skill
     pocket: RULES.startCoins,
     piggies: [{ built: true, savings: 0 }, { built: false, savings: 0 }, { built: false, savings: 0 }],
     catapults: [true, false],
+    boxes: [{ built: true, hp: RULES.boxHp }, { built: true, hp: RULES.boxHp }, { built: false, hp: 0 }],
     toys: RULES.startToys,
     morale: RULES.startMorale,
     chores: 1,
     ammo: { paper: 6, eraser: 2, marble: 1 },
     snacks: 3,
-    glue: 0,
     sulkSkip: false,
     flagDown: false,
-    stats: { shots: 0, earned: 0, blocksKnocked: 0, piggiesSmashed: 0, spent: 0 },
+    stats: { shots: 0, earned: 0, blocksKnocked: 0, boxesTorn: 0, piggiesSmashed: 0, spent: 0 },
   };
 }
 
@@ -148,12 +152,16 @@ export function startTurn(p, other, rnd, { grandma = false, clean = false } = {}
 }
 
 // what an enemy shot did to a castle's morale and money; returns lines for the report
-export function takeDamage(p, shooter, { blocks = 0, piggies = [], flagFell = false }) {
+export function takeDamage(p, shooter, { blocks = 0, piggies = [], flagFell = false, boxes = [] }) {
   const lines = [];
+  const cheer = (n) => { if (shooter && shooter !== p) shooter.morale = Math.min(100, shooter.morale + n); };
   if (blocks > 0) {
     p.morale = Math.max(0, p.morale + Math.max(RULES.blockLostCap, blocks * RULES.blockLost));
     if (shooter) shooter.stats.blocksKnocked += blocks;
+    cheer(Math.min(RULES.cheerBlocks, blocks));
   }
+  cheer(RULES.cheerBig * (boxes.length + piggies.length) + (flagFell && !p.flagDown ? 5 : 0));
+  if (shooter && shooter !== p) shooter.stats.boxesTorn += boxes.length;
   for (const slot of piggies) {
     const g = p.piggies[slot];
     if (!g.built) continue;
@@ -162,6 +170,10 @@ export function takeDamage(p, shooter, { blocks = 0, piggies = [], flagFell = fa
     p.morale = Math.max(0, p.morale + RULES.piggySmashed);
     if (shooter && shooter !== p) { shooter.pocket += found; shooter.stats.piggiesSmashed++; }
     lines.push({ text: coins ? `Piggy bank smashed! ${coins} coins scattered${shooter && shooter !== p && found ? `, ${found} rolled to the other side` : ''}` : 'Piggy bank smashed! It was empty', tone: 'bad', coins, found, slot });
+  }
+  for (const name of boxes) {
+    p.morale = Math.max(0, p.morale + RULES.boxTorn);
+    lines.push({ text: `The ${name.toLowerCase()} box is torn up!`, tone: 'bad' });
   }
   if (flagFell && !p.flagDown) {
     p.flagDown = true;

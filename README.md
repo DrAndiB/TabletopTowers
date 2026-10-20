@@ -7,8 +7,11 @@ toy soldiers to keep happy. Sibling of [Tabletop Turbo](https://github.com/DrAnd
 [Tabletop Trials](https://github.com/DrAndiB/TabletopTrials).
 
 ## Play
-- **Win** by knocking the other teddy off his throne. He sits inside his keep, so you have to get through
-  the walls first. Knock your own teddy off and you lose.
+- **Win** by knocking the other teddy off his throne. He sits in a throne room closed in by **cardboard
+  boxes** (the front and the roof of the keep). A box swallows a shot and takes dents instead: a paper ball
+  dents it once, an eraser twice, a marble three times (less for a slow shot). After five dents it tears
+  open and the shot goes on through, so a siege means wearing the boxes down first. Knock your own teddy
+  off and you lose.
 - **A turn:** pocket money and morale, then the shop, then one shot. Two players take turns on one screen
   (mouse, touch or keyboard), or play against a computer kid: a *Hoarder* (fills piggy banks and shoots at
   yours), a *Warmonger* (works its toys hard and buys marbles) or a *Sweetheart* (keeps its toys happy so
@@ -20,13 +23,16 @@ toy soldiers to keep happy. Sibling of [Tabletop Turbo](https://github.com/DrAnd
 - **Money:** every turn brings 5 coins of pocket money. **Chores** earn 0 to 3 coins per toy not working a
   catapult but cost morale. **Piggy banks** pay 2 coins a turn plus 10% interest on what they hold, and
   coins you don't spend go into them, so a smashed piggy spills your savings (half roll over to the other
-  side). The **swap shop** in the middle sells ammo, snacks, glue and blocks; prices rise when you buy and
+  side). The **swap shop** in the middle sells ammo, snacks and blocks; prices rise when you buy and
   settle back each round, and you can sell surplus back at 60%.
-- **Toy soldiers** need snacks (one per five toys a turn). Happy toys bring a friend now and then; sulky
+- **Toy soldiers** need snacks (one per five toys a turn) and lose heart when their castle is hit, but
+  cheer when your own shots land. Happy toys bring a friend now and then; sulky
   toys skip every other shot; unhappy toys walk over to the other castle. If they mutiny, or nobody is left
   to work the catapult, you lose.
-- **Build:** rebuild knocked-down blocks and the flag, add up to three piggy banks, a back catapult that
-  lobs over your keep, or glue that makes your castle sturdier for two enemy shots.
+- **Build:** rebuild knocked-down blocks and the flag (boxes that were pushed off their place go back
+  too), put one strip of tape on each dented box a turn (mends one dent), put up a new box where one was
+  torn or in the gap on top of your wall, add up to three piggy banks, or a back catapult that lobs over
+  your keep.
 - **The kitchen joins in** now and then: the cat walks across the table, Grandma doubles everyone's pocket
   money, it's dinner time (no shooting), the tooth fairy comes, a little sister steals a block, chores are
   set to Light for everyone, or somebody opens the window.
@@ -52,6 +58,10 @@ loop; the tools drive the clock).
 - The castles are one block deep, like a castle drawn on paper and built in wood (`js/layout.js`). Every
   block is a rigid body on a fixed 120 Hz step with 20 solver iterations; everything sleeps between shots,
   the first touch of a projectile wakes the table, and a shot is over when it has all gone back to sleep.
+- Cardboard boxes are where the game turns from Angry Birds into Ballerburg: a projectile that touches
+  a box is slowed to a tenth of its speed in the contact event, before the solver passes the push on, so
+  the box takes dents instead of the castle toppling; a shot that tears a box has the box's contacts taken
+  out of that step and goes on through it.
 - One small integrator (`js/ballistics.js`) drives the aiming preview, the computer kids' aim and the
   draft and drag on a projectile in flight, so all three agree. The computer kids try a grid of angles and
   strengths against the boxes of everything on the table and pick the shot whose first touch is closest to

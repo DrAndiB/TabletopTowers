@@ -4,7 +4,7 @@
 import * as THREE from '../vendor/three.bundle.js';
 import { RoundedBoxGeometry, BufferGeometryUtils } from '../vendor/three.bundle.js';
 import * as TX from './textures.js';
-import { DEPTH, TEDDY, THRONE, PIGGY, CATAPULT } from './layout.js';
+import { DEPTH, TEDDY, THRONE, PIGGY, CATAPULT, SLOTS } from './layout.js';
 import { AMMO } from './ballistics.js';
 import { rng, TAU, clamp } from './util.js';
 
@@ -312,6 +312,109 @@ export function flag(side) {
       }
       p.needsUpdate = true;
       geo.computeVertexNormals();
+    },
+  };
+}
+
+// ---------- cardboard boxes ----------
+const cardCache = new Map();
+function cardTexture(kind, label = '', w = 1, h = 1) {
+  const key = `${kind}:${label}:${w}x${h}`;
+  if (cardCache.has(key)) return cardCache.get(key);
+  const W = 256, H = Math.max(64, Math.round((256 * h) / w));
+  const c = TX.makeCanvas(W, H), g = c.getContext('2d');
+  const r = rng(label.length * 13 + W + H);
+  g.fillStyle = '#c99d66'; g.fillRect(0, 0, W, H);
+  // corrugation and a few scuffs
+  for (let x = 0; x < W; x += 5) { g.fillStyle = `rgba(120,80,40,${0.06 + r() * 0.05})`; g.fillRect(x, 0, 2, H); }
+  for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(90,60,30,${0.05 + r() * 0.06})`; g.beginPath(); g.ellipse(r() * W, r() * H, 10 + r() * 30, 4 + r() * 10, r() * 3, 0, TAU); g.fill(); }
+  if (kind === 'top') {
+    // packing tape down the middle
+    g.fillStyle = 'rgba(214,182,120,0.85)'; g.fillRect(0, H * 0.38, W, H * 0.24);
+    g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, H * 0.4, W, H * 0.05);
+  } else if (kind === 'front' && label) {
+    // a printed word, a bit faded, and the arrows
+    g.save();
+    g.translate(W / 2, H / 2);
+    const fs = Math.min(H * 0.32, (W * 1.5) / label.length);
+    g.font = `${fs}px "Lilita One", Impact, sans-serif`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(60,40,24,0.75)';
+    if (H > W * 1.6) { g.rotate(-Math.PI / 2); }
+    g.fillText(label, 0, 0);
+    g.restore();
+    g.strokeStyle = 'rgba(200,40,30,0.55)'; g.lineWidth = 5;
+    g.strokeRect(10, 10, W - 20, H - 20);
+  }
+  const t = TX.toTexture(c, { wrap: false });
+  t.userData.shared = true;
+  cardCache.set(key, t);
+  return t;
+}
+// A cardboard box from the castle's slots. As it takes hits its edges sag, its faces cave in and
+// the printed side gets creased, scuffed and finally torn. Origin at its centre.
+export function cardboardBox(side, slot) {
+  const s = SLOTS.boxes[slot];
+  const geo = new THREE.BoxGeometry(s.w, s.h, DEPTH, Math.max(2, Math.round(s.w / 1.5)), Math.max(2, Math.round(s.h / 1.5)), 6);
+  // the printed side is the box's own canvas, so the damage can be drawn on it
+  const front = cardTexture('front', s.label, s.w, s.h);
+  const fc = TX.makeCanvas(front.image.width, front.image.height);
+  const ftex = TX.toTexture(fc, { wrap: false });
+  const side_ = new THREE.MeshStandardMaterial({ map: cardTexture('side', '', DEPTH, s.h), roughness: 0.95 });
+  const mats = [side_, side_,
+    new THREE.MeshStandardMaterial({ map: cardTexture('top', '', s.w, DEPTH), roughness: 0.9 }), side_,
+    new THREE.MeshStandardMaterial({ map: ftex, roughness: 0.95 }), side_];
+  const mesh = new THREE.Mesh(geo, mats);
+  mesh.castShadow = true; mesh.receiveShadow = true;
+  const base = geo.attributes.position.array.slice();
+  const seed = side * 7 + slot * 3 + 1;
+  const hx = s.w / 2, hy = s.h / 2, hz = DEPTH / 2;
+  const paintFront = (f) => {
+    const g = fc.getContext('2d'), W = fc.width, H = fc.height, r = rng(seed);
+    g.drawImage(front.image, 0, 0);
+    if (f <= 0) { ftex.needsUpdate = true; return; }
+    // one crease for every bit of damage, a scuff around each, in the same places every time
+    const n = Math.ceil(f * 7);
+    for (let k = 0; k < 7; k++) {
+      const x = W * (0.12 + r() * 0.76), y = H * (0.12 + r() * 0.76), a = r() * Math.PI, l = Math.min(W, H) * (0.25 + r() * 0.35);
+      if (k >= n) continue;
+      g.fillStyle = 'rgba(80,50,20,0.22)'; g.beginPath(); g.ellipse(x, y, l * 0.55, l * 0.3, a, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(60,36,14,0.75)'; g.lineWidth = 3; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(x - Math.cos(a) * l / 2, y - Math.sin(a) * l / 2); g.quadraticCurveTo(x + Math.sin(a) * l * 0.15, y - Math.cos(a) * l * 0.15, x + Math.cos(a) * l / 2, y + Math.sin(a) * l / 2); g.stroke();
+      g.strokeStyle = 'rgba(255,240,210,0.35)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x - Math.cos(a) * l / 2 + 2, y - Math.sin(a) * l / 2 + 2); g.lineTo(x + Math.cos(a) * l / 2 + 2, y + Math.sin(a) * l / 2 + 2); g.stroke();
+    }
+    // badly hurt: a flap torn open showing the dark inside
+    if (f > 0.55) {
+      // a ragged hole, its paper torn back on one side
+      const x = W * 0.6, y = H * 0.52, rx = W * (0.08 + (f - 0.55) * 0.25), ry = H * (0.1 + (f - 0.55) * 0.3);
+      const pts = [];
+      for (let k = 0; k < 14; k++) { const a = (k / 14) * TAU, j = 0.65 + r() * 0.45; pts.push([x + Math.cos(a) * rx * j, y + Math.sin(a) * ry * j]); }
+      g.fillStyle = '#2e1c0e'; g.beginPath(); pts.forEach(([px, py], k) => (k ? g.lineTo(px, py) : g.moveTo(px, py))); g.closePath(); g.fill();
+      g.fillStyle = '#e8cc9c'; g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); g.lineTo(pts[3][0], pts[3][1]); g.lineTo(x + rx * 1.5, y + ry * 0.9); g.closePath(); g.fill();
+      g.strokeStyle = 'rgba(60,36,14,0.7)'; g.lineWidth = 2; g.stroke();
+    }
+    ftex.needsUpdate = true;
+  };
+  return {
+    group: mesh,
+    // 0 = new, 1 = about to tear
+    setDamage(f) {
+      const p = geo.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const x = base[i * 3], y = base[i * 3 + 1], z = base[i * 3 + 2];
+        const ex = 1 - Math.abs(x / hx), ey = 1 - Math.abs(y / hy), ez = 1 - Math.abs(z / hz);
+        const n = 0.5 + 0.5 * Math.sin(x * 1.3 + seed) * Math.sin(y * 1.1 + seed * 2) * Math.cos(z * 0.9 + seed * 3);
+        const k = f * (0.3 + 0.7 * n);
+        // the top sags in the middle, the sides buckle in, the faces cave
+        const sag = y > 0 ? k * 1.6 * ex * (0.5 + 0.5 * ez) : 0;
+        p.setXYZ(i,
+          x - Math.sign(x) * k * 1.2 * ey * (0.5 + 0.5 * ez),
+          y - sag - Math.sign(y) * k * 0.6 * Math.min(ex, ez),
+          z - Math.sign(z) * k * 2.2 * Math.min(ex, ey));
+      }
+      p.needsUpdate = true;
+      geo.computeVertexNormals();
+      paintFront(f);
     },
   };
 }

@@ -235,6 +235,18 @@ export class Sound {
   purr(dur = 2) { for (let k = 0; k < dur * 4; k++) this.tone(52 * rand(0.95, 1.05), 0.2, { type: 'sawtooth', vol: 0.03, when: k * 0.26 }); }
   bell() { for (let k = 0; k < 6; k++) { this.tone(1760, 0.6, { type: 'triangle', vol: 0.1, when: k * 0.14 }); this.tone(3520 * 1.18, 0.3, { type: 'sine', vol: 0.03, when: k * 0.14 }); } }
   sparkle() { [88, 91, 95, 100, 103].forEach((m, i) => this.tone(mtof(m), 0.3, { type: 'sine', vol: 0.05, when: i * 0.06 })); }
+  // a shot thumping into cardboard: a dull, hollow knock
+  cardboard(v = 1, pan = 0) {
+    this.tone(140, 0.16, { type: 'sine', vol: Math.min(0.3, 0.1 + v * 0.05), slideTo: 90, pan });
+    this.noiseBurst(0.14, { freq: 700, q: 0.8, type: 'bandpass', vol: Math.min(0.22, 0.08 + v * 0.04), pan });
+  }
+  // cardboard tearing open
+  rip(pan = 0) {
+    for (let k = 0; k < 9; k++) this.noiseBurst(0.05, { freq: rand(1500, 3200), q: 1.5, type: 'bandpass', vol: rand(0.05, 0.12), pan, when: k * rand(0.02, 0.04) });
+    this.sweep(0.35, { from: 3000, to: 900, q: 1, vol: 0.12, pan, attack: 0.02 });
+  }
+  // packing tape pulled off the roll
+  tape() { this.sweep(0.45, { from: 1200, to: 3800, q: 2.5, vol: 0.09, attack: 0.04 }); this.tone(900, 0.05, { type: 'triangle', vol: 0.05, when: 0.45 }); }
   aww() { [62, 61, 60, 59].forEach((m, i) => this.kazoo(m - 12, i === 3 ? 0.7 : 0.28, i * 0.3, 0.08)); }
 
   kazoo(midi, dur, when = 0, vol = 0.09) {

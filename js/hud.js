@@ -5,6 +5,7 @@ import { AMMO, AMMO_ORDER, WIND_MAX } from './ballistics.js';
 import { CHORES, GOODS, RULES, savings, moraleWord, snacksNeeded, idleToys } from './economy.js';
 import { PERSONALITIES } from './ai.js';
 import { TEAM } from './pieces.js';
+import { SLOTS } from './layout.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 
@@ -17,10 +18,12 @@ export const ICON = {
   paper: '<svg class="ico" viewBox="0 0 20 20"><path d="M10 2l6 3 2 6-4 6-6 1-5-4-1-6z" fill="#fbf8ef" stroke="#1f1a17" stroke-width="2" stroke-linejoin="round"/><path d="M6 8l4 2 4-3M8 13l3-2" stroke="#7a9ad8" stroke-width="1.2" fill="none"/></svg>',
   eraser: '<svg class="ico" viewBox="0 0 22 16"><rect x="1.5" y="3" width="12" height="10" rx="2" fill="#e8606a" stroke="#1f1a17" stroke-width="2"/><rect x="12.5" y="3" width="8" height="10" rx="2" fill="#3a6fd0" stroke="#1f1a17" stroke-width="2"/></svg>',
   marble: '<svg class="ico" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="#9fd8f2" stroke="#1f1a17" stroke-width="2"/><path d="M4 11c3-3 6 2 12-2" stroke="#2f6fe0" stroke-width="2.4" fill="none"/><circle cx="7" cy="6.5" r="1.6" fill="#fff"/></svg>',
-  glue: '<svg class="ico" viewBox="0 0 16 20"><path d="M4 8h8v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" fill="#fbf8ef" stroke="#1f1a17" stroke-width="2"/><path d="M6 8l2-6 2 6z" fill="#ef7d2c" stroke="#1f1a17" stroke-width="1.6"/></svg>',
+  box: '<svg class="ico" viewBox="0 0 22 20"><path d="M2 7h18v11H2z" fill="#c99d66" stroke="#1f1a17" stroke-width="2" stroke-linejoin="round"/><path d="M2 7l3-5h12l3 5" fill="#dcb47e" stroke="#1f1a17" stroke-width="2" stroke-linejoin="round"/><rect x="9" y="7" width="4" height="11" fill="#e6cf9a"/></svg>',
   block: '<svg class="ico" viewBox="0 0 22 18"><rect x="1.5" y="9" width="10" height="7" rx="1.5" fill="#d8392b" stroke="#1f1a17" stroke-width="1.8"/><rect x="10.5" y="9" width="10" height="7" rx="1.5" fill="#f2b730" stroke="#1f1a17" stroke-width="1.8"/><rect x="6" y="2" width="10" height="7" rx="1.5" fill="#e8c896" stroke="#1f1a17" stroke-width="1.8"/></svg>',
   catapult: '<svg class="ico" viewBox="0 0 24 18"><rect x="2" y="13" width="20" height="4" rx="1" fill="#e8c896" stroke="#1f1a17" stroke-width="1.6"/><path d="M8 14L20 4" stroke="#1f1a17" stroke-width="2.4"/><ellipse cx="20" cy="4" rx="3" ry="2" fill="#fff" stroke="#1f1a17" stroke-width="1.6"/></svg>',
 };
+const fmt = (h) => (h % 1 ? h.toFixed(1) : String(h));
+const boxPips = (boxes) => (boxes ? boxes.map((b) => (b.built ? `<i class="pip" style="--f:${Math.round((b.hp / RULES.boxHp) * 100)}%"></i>` : '<i class="pip gone"></i>')).join('') : '');
 const trendMark = (t) => (t > 0 ? '<i class="up">▲</i>' : t < 0 ? '<i class="down">▼</i>' : '');
 
 export class Hud {
@@ -46,7 +49,7 @@ export class Hud {
   hideHud() { this.root.classList.add('hidden'); }
   setRound(n) { this.roundEl.textContent = `Round ${n}`; }
 
-  setCastle(side, p, { standing, total, glued }) {
+  setCastle(side, p, { standing, total, boxes }) {
     const el = this.cards[side];
     const who = p.type === 'human' ? 'Player' : `Computer · ${PERSONALITIES[p.personality].name}`;
     const m = Math.round(p.morale);
@@ -55,8 +58,8 @@ export class Hud {
     el.innerHTML = `<div class="cc-head"><b>${TEAM[side].name} castle</b><span>${who}</span></div>
       <div class="cc-money">${ICON.coin}<b>${p.pocket}</b><span class="sep"></span>${ICON.pig}<b>${savings(p)}</b><small>saved in ${p.piggies.filter((g) => g.built).length}</small></div>
       <div class="cc-morale m-${mood.toLowerCase()}"><div class="bar"><i style="width:${m}%"></i></div><span>${mood}</span></div>
-      <div class="cc-stock"><span style="color:${TEAM[side].hex}">${ICON.toy}${p.toys}</span><span>${ICON.snack}${p.snacks}</span>${AMMO_ORDER.map((k) => `<span class="${p.ammo[k] ? '' : 'none'}">${ICON[k]}${p.ammo[k]}</span>`).join('')}</div>
-      <div class="cc-tags">${p.flagDown ? '<em class="bad">Flag down</em>' : ''}${glued ? `<em>Glued ×${glued}</em>` : ''}${standing < total ? `<em>${total - standing} blocks down</em>` : ''}${p.sulkSkip ? '<em class="bad">Sulking</em>' : ''}</div>`;
+      <div class="cc-stock"><span style="color:${TEAM[side].hex}">${ICON.toy}${p.toys}</span><span>${ICON.snack}${p.snacks}</span>${AMMO_ORDER.map((k) => `<span class="${p.ammo[k] ? '' : 'none'}">${ICON[k]}${p.ammo[k]}</span>`).join('')}<span class="boxes" title="Cardboard boxes: dents left">${ICON.box}${boxPips(boxes)}</span></div>
+      <div class="cc-tags">${p.flagDown ? '<em class="bad">Flag down</em>' : ''}${standing < total ? `<em>${total - standing} blocks down</em>` : ''}${p.sulkSkip ? '<em class="bad">Sulking</em>' : ''}</div>`;
   }
 
   setWind(w) {
@@ -107,18 +110,21 @@ export class Hud {
     const item = (k, have, extra = '') => `<div class="item">
         <div class="it-name">${ICON[k]}<span>${GOODS[k].name}${k === 'snack' ? 's' : ''}</span><small>×${have}</small></div>
         <div class="it-price">${ICON.coin}${price(k)}${trendMark(m.trend[k])}</div>
-        <div class="it-btns"><button class="btn tiny buy" data-buy="${k}" ${can(price(k)) ? '' : 'disabled'}>Buy</button>${k !== 'glue' ? `<button class="btn tiny ghost" data-sell="${k}" ${have > 0 && m.sellPrice(k) > 0 ? '' : 'disabled'} title="Sell for ${m.sellPrice(k)}">Sell ${m.sellPrice(k)}</button>` : ''}</div>${extra}</div>`;
+        <div class="it-btns"><button class="btn tiny buy" data-buy="${k}" ${can(price(k)) ? '' : 'disabled'}>Buy</button><button class="btn tiny ghost" data-sell="${k}" ${have > 0 && m.sellPrice(k) > 0 ? '' : 'disabled'} title="Sell for ${m.sellPrice(k)}">Sell ${m.sellPrice(k)}</button></div>${extra}</div>`;
     const ch = CHORES.map((c, i) => `<button data-chores="${i}" class="${p.chores === i ? 'on' : ''}"><b>${c.name}</b><small>${c.coins ? `+${c.coins * idleToys(p)} ${ICON.coin}` : 'no coins'} · ${c.morale > 0 ? '+' : ''}${c.morale} mood</small></button>`).join('');
-    const rebuildable = info.missing > 0 || info.flagDown;
+    const rebuildable = info.missing > 0 || info.flagDown || info.displaced > 0;
+    const builtBoxes = info.boxes.map((b, i) => (b.built ? `${SLOTS.boxes[i].name.split(' ').pop()} ${fmt(b.hp)}` : null)).filter(Boolean);
     el.innerHTML = `<div class="sh-head"><h3>${TEAM[side].name}'s shop</h3><span class="sh-money">${ICON.coin}<b>${p.pocket}</b> in pocket · ${ICON.pig}<b>${savings(p)}</b> in piggies</span>
         <button class="btn yellow go" data-go>To the catapult <kbd>Enter</kbd></button></div>
       <div class="sh-chores"><span class="lbl">Chores for ${idleToys(p)} idle toys</span><div class="seg chores">${ch}</div></div>
       <div class="sh-grid">
         ${AMMO_ORDER.map((k) => item(k, p.ammo[k])).join('')}
         ${item('snack', p.snacks, `<div class="it-note">The toys eat ${snacksNeeded(p)} a turn</div>`)}
-        ${item('glue', p.glue, `<div class="it-note">${p.glue ? `Holds for ${p.glue} more shots` : `Sticky castle for ${RULES.glueShots} enemy shots`}</div>`)}
+        <div class="item build"><div class="it-name">${ICON.box}<span>Cardboard</span></div>
+          <div class="it-note">${builtBoxes.length ? `Dents left: ${builtBoxes.join(' · ')} (of ${RULES.boxHp})` : 'No boxes left'}</div>
+          <div class="it-btns"><button class="btn tiny buy" data-build="tape" ${info.tapeTarget >= 0 && can(RULES.tapePrice) ? '' : 'disabled'} title="Mends ${RULES.tapeHp} dents on your most dented box">Tape ${ICON.coin}${RULES.tapePrice}</button><button class="btn tiny buy" data-build="box" ${info.boxSlot >= 0 && can(RULES.boxPrice) ? '' : 'disabled'} title="${info.boxSlot >= 0 ? `A new box for the ${SLOTS.boxes[info.boxSlot].name.toLowerCase()}` : 'All boxes are up'}">New box ${ICON.coin}${RULES.boxPrice}</button></div></div>
         <div class="item build"><div class="it-name">${ICON.block}<span>Rebuild</span></div>
-          <div class="it-note">${rebuildable ? `${info.missing} block${info.missing === 1 ? '' : 's'}${info.flagDown ? ' and the flag' : ''}` : 'Nothing to rebuild'}</div>
+          <div class="it-note">${rebuildable ? [info.missing ? `${info.missing} block${info.missing === 1 ? '' : 's'}` : '', info.flagDown ? 'the flag' : '', info.displaced ? 'boxes back in place' : ''].filter(Boolean).join(', ') : 'Nothing to rebuild'}</div>
           <div class="it-btns"><button class="btn tiny buy" data-build="rebuild" ${rebuildable && can(info.rebuildCost) ? '' : 'disabled'}>${rebuildable ? `${ICON.coin}${info.rebuildCost}` : 'Rebuild'}</button></div></div>
         <div class="item build"><div class="it-name">${ICON.pig}<span>Piggy bank</span></div>
           <div class="it-note">${info.piggySlot >= 0 ? `${p.piggies.filter((x) => x.built).length} of 3 built. Earns ${RULES.piggyBase} + 10% a turn` : 'All three built'}</div>

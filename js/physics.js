@@ -16,13 +16,14 @@ export class Physics {
     w.defaultContactMaterial.friction = 0.55;
     w.defaultContactMaterial.restitution = 0.05;
     // materials: blocks and table are wood; the teddy is felt; piggy banks are glazed clay
-    const M = (this.mat = { wood: new CANNON.Material('wood'), felt: new CANNON.Material('felt'), clay: new CANNON.Material('clay') });
+    const M = (this.mat = { wood: new CANNON.Material('wood'), felt: new CANNON.Material('felt'), clay: new CANNON.Material('clay'), card: new CANNON.Material('card') });
     for (const k of Object.keys(AMMO)) M[k] = new CANNON.Material(k);
     w.addContactMaterial(new CANNON.ContactMaterial(M.felt, M.wood, { friction: 0.9, restitution: 0.02 }));
     w.addContactMaterial(new CANNON.ContactMaterial(M.clay, M.wood, { friction: 0.5, restitution: 0.05 }));
+    w.addContactMaterial(new CANNON.ContactMaterial(M.card, M.wood, { friction: 0.8, restitution: 0.0 }));
     for (const k of Object.keys(AMMO)) {
       const a = AMMO[k];
-      for (const o of ['wood', 'felt', 'clay']) w.addContactMaterial(new CANNON.ContactMaterial(M[k], M[o], { friction: a.friction, restitution: o === 'felt' ? a.restitution * 0.3 : a.restitution }));
+      for (const o of ['wood', 'felt', 'clay', 'card']) w.addContactMaterial(new CANNON.ContactMaterial(M[k], M[o], { friction: a.friction, restitution: o === 'felt' ? a.restitution * 0.3 : a.restitution }));
     }
     this.acc = 0;
     this.time = 0;
@@ -31,6 +32,7 @@ export class Physics {
     this.lost = [];
     this.onImpact = null;       // (bodyA, bodyB, speed) for sounds and smashing piggies
     this.onLost = null;         // (body) a body fell off the table
+    this.onBoxHit = null;       // (box, shot, speed) a projectile hit a cardboard box
     this.wind = 0;
     // the table top (and the kitchen floor far below, so nothing falls forever)
     const table = new CANNON.Body({ mass: 0, material: M.wood, shape: new CANNON.Box(V(TABLE.x, 5, TABLE.z)) });
@@ -91,6 +93,12 @@ export class Physics {
     ], worldX(side, s.x), s.y + 6, 0, { angularDamping: 0.3 });
   }
 
+  // a cardboard box: light, grippy, and it swallows projectiles (see collide)
+  addBox(side, slot) {
+    const s = SLOTS.boxes[slot];
+    return this.dyn('box', side, s.mass, this.mat.card, [[new CANNON.Box(V(s.w / 2, s.h / 2, DEPTH / 2))]], worldX(side, s.x), s.y + s.h / 2, 0, { slot });
+  }
+
   // catapults are bolted to the table: they stop debris but never fall over
   addCatapult(side, slot) {
     const s = SLOTS.catapults[slot];
@@ -142,6 +150,26 @@ export class Physics {
       this.wakeAll();
     }
     if (ud.kind === 'shot') ud.hits++;
+    // cardboard swallows a shot: it stops dead (before the solver hands the push on) and the box
+    // takes the damage instead of the blocks behind it. A shot that tears the box open goes on
+    // through it with what it has left.
+    if (ud.kind === 'shot' && other.userData.kind === 'box' && !other.userData.torn && speed > 25) {
+      const r = this.onBoxHit ? this.onBoxHit(other, b, speed) : null;
+      if (r && r.torn) {
+        other.isTrigger = true;
+        const eqs = this.world.solver.equations;
+        for (let i = eqs.length - 1; i >= 0; i--) if (eqs[i].bi === other || eqs[i].bj === other) eqs.splice(i, 1);
+        b.velocity.scale(r.keep, b.velocity);
+      } else {
+        b.velocity.scale(0.1, b.velocity);
+        b.angularVelocity.scale(0.2, b.angularVelocity);
+      }
+    }
+    // a piggy bank that breaks takes most of the shot with it
+    if (ud.kind === 'shot' && other.userData.kind === 'piggy' && speed > 22) {
+      b.velocity.scale(0.35, b.velocity);
+      b.angularVelocity.scale(0.5, b.angularVelocity);
+    }
     // each pair is reported once (from the body with the lower id)
     if (this.onImpact && b.id < other.id) this.onImpact(b, other, speed);
   }

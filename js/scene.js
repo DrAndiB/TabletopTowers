@@ -194,12 +194,15 @@ export function buildStall(K) {
   const biscuits = new THREE.Mesh(new RoundedBoxGeometry(9, 4, 5, 2, 0.8), [0, 1, 2, 3, 4, 5].map((k) => (k === 4 ? std({ map: TX.toTexture(bc, { wrap: false }), roughness: 0.6 }) : std({ color: 0xf2c230, roughness: 0.6 }))));
   const bg = new THREE.Group(); biscuits.position.y = 2; bg.add(biscuits);
   put('snack', bg, -18, 2);
-  // glue bottle
-  const glue = new THREE.Group();
-  const gb = new THREE.Mesh(K.lathe([[0.01, 0], [2.2, 0], [2.3, 6], [1.2, 7.2], [0.01, 7.2]], 18), std({ color: 0xfbf8ef, roughness: 0.4 }));
-  const gc = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.6, 12), std({ color: 0xef7d2c, roughness: 0.4 })); gc.position.y = 8.4;
-  glue.add(gb, gc);
-  put('glue', glue, 21, -3);
+  // a roll of tape and a flattened box (the cardboard)
+  const tape = new THREE.Group();
+  const roll = new THREE.Mesh(new THREE.TorusGeometry(2.4, 1.0, 10, 24), std({ color: 0xd6b678, roughness: 0.35 }));
+  roll.rotation.x = Math.PI / 2; roll.position.y = 1.0;
+  const flat = new THREE.Mesh(new THREE.BoxGeometry(9, 0.5, 6), card);
+  flat.position.set(-1.5, 0.25, 0); flat.rotation.y = 0.3;
+  roll.position.x = 1.5;
+  tape.add(flat, roll);
+  put('box', tape, 21, -3);
   // the shopkeeper: a big peg doll in a green cap
   const keeper = new THREE.Group();
   const kd = new THREE.Mesh(soldierGeometry(0).clone(), new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.5, clearcoat: 0.5 }));
