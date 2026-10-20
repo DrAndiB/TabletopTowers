@@ -1,0 +1,71 @@
+# Builds the Android app (app/) on GitHub's servers and publishes the APK as the "android-preview"
+# pre-release, so it can be downloaded straight onto a phone. Runs when the game or the app changes.
+name: Android app
+
+on:
+  push:
+    branches: [main, android]
+    paths: ['app/**', 'js/**', 'css/**', 'index.html', 'fonts/**', 'vendor/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-app
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Copy the game into the app
+        run: |
+          npm ci
+          npm run sync
+
+      - name: Build the preview APK
+        working-directory: app/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Name the APK
+        id: apk
+        run: |
+          v=$(node -p "require('./package.json').version")
+          name="TabletopTowers-${v}-preview${GITHUB_RUN_NUMBER}.apk"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tabletop-towers-apk
+          path: app/${{ steps.apk.outputs.name }}
+
+      - name: Publish the preview download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android-preview --cleanup-tag --yes || true
+          gh release create android-preview "${{ steps.apk.outputs.name }}" \
+            --prerelease --target "$GITHUB_SHA" \
+            --title "Android preview ${{ steps.apk.outputs.version }} (build ${GITHUB_RUN_NUMBER})" \
+            --notes "Preview build of the Tabletop Towers Android app from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA::7}. Open this page on the phone, tap the .apk file and allow the install. Not the Google Play version."

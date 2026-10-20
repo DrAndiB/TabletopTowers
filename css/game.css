@@ -18,6 +18,9 @@
   --display: "Lilita One", "Arial Rounded MT Bold", Impact, sans-serif;
   --body: "Rubik", system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light;
+  /* a camera cutout at the side of a phone held sideways (the app gets --safe-area-inset-* from Capacitor) */
+  --sal: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+  --sar: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: #1f1a17; overflow: hidden; }
@@ -43,7 +46,7 @@ a { color: inherit; }
 @keyframes stack { from { transform: translateY(-12px); opacity: .2; } to { transform: none; opacity: 1; } }
 
 /* ---------- screens ---------- */
-.screen { position: fixed; inset: 0; display: none; z-index: 10; padding: 16px; overflow: auto; }
+.screen { position: fixed; inset: 0; display: none; z-index: 10; padding: 16px; padding-left: calc(16px + var(--sal)); padding-right: calc(16px + var(--sar)); overflow: auto; }
 .screen.active { display: grid; place-items: center; }
 #screen-title.active { background: linear-gradient(180deg, rgba(20, 15, 12, .5), rgba(20, 15, 12, .05) 45%, rgba(20, 15, 12, .6)); }
 #screen-setup.active, #screen-howto.active, #screen-pause.active, #screen-results.active { background: rgba(20, 15, 12, .45); backdrop-filter: blur(2px); }
@@ -76,7 +79,7 @@ a { color: inherit; }
 .btn.tiny:active:not(:disabled) { box-shadow: 0 0 0 var(--ink); transform: translateY(2px); }
 .btn kbd { font-size: 12px; vertical-align: 3px; margin-left: 4px; }
 
-#corner { position: fixed; top: 10px; right: 10px; z-index: 30; display: flex; gap: 8px; }
+#corner { position: fixed; top: 10px; right: calc(10px + var(--sar)); z-index: 30; display: flex; gap: 8px; }
 .icon-btn { width: 40px; height: 40px; border-radius: 12px; border: 2px solid rgba(255,255,255,.35); background: rgba(31,26,23,.45); color: #fff; font-size: 18px; line-height: 1; backdrop-filter: blur(4px); display: grid; place-items: center; }
 .icon-btn:hover { background: rgba(31,26,23,.7); }
 #btn-pause { display: none; }
@@ -143,7 +146,7 @@ body[data-screen="none"] #corner { display: none; }
 /* ---------- in-game HUD ---------- */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
 #hud > * { pointer-events: auto; }
-#topbar { position: absolute; top: 8px; left: 8px; right: 8px; display: grid; grid-template-columns: minmax(0, 290px) 1fr minmax(0, 290px); gap: 8px; align-items: start; pointer-events: none; }
+#topbar { position: absolute; top: 8px; left: calc(8px + var(--sal)); right: calc(8px + var(--sar)); display: grid; grid-template-columns: minmax(0, 290px) 1fr minmax(0, 290px); gap: 8px; align-items: start; pointer-events: none; }
 #topbar > * { pointer-events: auto; }
 .ccard { background: rgba(255, 244, 220, .93); border: 2.5px solid var(--ink); border-radius: 14px; padding: 6px 10px 7px; box-shadow: 0 3px 0 var(--ink); font-size: 13.5px; transition: transform .2s, box-shadow .2s; border-top-width: 7px; }
 .ccard.red { border-top-color: var(--red); } .ccard.blue { border-top-color: var(--blue); justify-self: end; width: 100%; }
@@ -204,7 +207,7 @@ body[data-screen="none"] #corner { display: none; }
 @media (max-height: 520px) { #toasts { top: 96px; } .toast { font-size: 12.5px; padding: 2px 10px; } }
 
 /* bottom sheets: the shop and the aiming bar */
-.sheet { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: min(860px, calc(100vw - 16px)); background: rgba(255, 244, 220, .96); border: var(--line) solid var(--ink); border-radius: 18px; box-shadow: 0 6px 0 var(--ink), 0 16px 40px rgba(0,0,0,.35); padding: 10px 14px 12px; }
+.sheet { position: absolute; left: calc(50% + (var(--sal) - var(--sar)) / 2); bottom: 10px; transform: translateX(-50%); width: min(860px, calc(100vw - 16px - var(--sal) - var(--sar))); background: rgba(255, 244, 220, .96); border: var(--line) solid var(--ink); border-radius: 18px; box-shadow: 0 6px 0 var(--ink), 0 16px 40px rgba(0,0,0,.35); padding: 10px 14px 12px; }
 .sheet[hidden] { display: none; }
 #shop { max-height: 58dvh; overflow: auto; }
 .sh-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -221,7 +224,7 @@ body[data-screen="none"] #corner { display: none; }
 @media (max-width: 760px) { .sh-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* phones on their side: a compact shop, one line per item */
 @media (max-height: 520px) {
-  #shop { max-height: calc(100dvh - 104px); padding: 6px 10px 8px; width: min(980px, calc(100vw - 16px)); }
+  #shop { max-height: calc(100dvh - 104px); padding: 6px 10px 8px; width: min(980px, calc(100vw - 16px - var(--sal) - var(--sar))); }
   .sh-head h3 { font-size: 19px; }
   .sh-head .go { font-size: 17px; padding: 4px 14px; }
   .sh-money { font-size: 12.5px; }
@@ -248,7 +251,7 @@ body[data-screen="none"] #corner { display: none; }
 .it-note { font-size: 11.5px; color: var(--ink-2); line-height: 1.25; }
 .sh-foot { margin: 7px 0 0; font-size: 12px; color: var(--ink-2); }
 
-#aimbar { padding: 6px 12px 10px; width: min(980px, calc(100vw - 16px)); }
+#aimbar { padding: 6px 12px 10px; width: min(980px, calc(100vw - 16px - var(--sal) - var(--sar))); }
 .am-hint { font-size: 12.5px; color: var(--ink-2); text-align: center; margin-bottom: 5px; }
 .am-hint kbd { font-size: 10.5px; }
 .am-row { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
@@ -279,3 +282,6 @@ body[data-screen="none"] #corner { display: none; }
 .cc-stock .boxes { gap: 3px; }
 .pip { display: inline-block; width: 7px; height: 13px; border: 1.5px solid var(--ink); border-radius: 2px; background: linear-gradient(to top, #c99d66 var(--f), #fff var(--f)); }
 .pip.gone { background: repeating-linear-gradient(135deg, #fff 0 2px, #e8d8c0 2px 4px); opacity: .6; }
+
+/* ---------- Android app: the system handles fullscreen and navigation ---------- */
+.in-app #btn-fs, .in-app #screen-title .back { display: none; }

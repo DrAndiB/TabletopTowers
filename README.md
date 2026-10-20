@@ -40,6 +40,11 @@ toy soldiers to keep happy. Sibling of [Tabletop Turbo](https://github.com/DrAnd
 Keys: ↑ ↓ angle, ← → strength (hold Shift for fine steps), Tab or Q/E ammo, C catapult, B back to the shop,
 Space or Enter fires, Esc or P pauses, F fullscreen, F3 performance overlay.
 
+## Android app
+The same game as an Android app (Capacitor), built on GitHub for every change: open
+https://github.com/DrAndiB/TabletopTowers/releases/tag/android-preview on the phone, tap the `.apk` and allow
+the install. Details, building it yourself and the steps to Google Play are in `app/README.md`.
+
 ## Run it locally
 No build step. Serve the folder and open it in a browser:
 
@@ -75,6 +80,7 @@ loop; the tools drive the clock).
 - `node --experimental-default-type=module _dev/tools/checks/battle_sim.mjs [shots] [skill] [seed]`: the
   castles stand still while awake, and computer kids' shots (paper, eraser, marble in turn) do what they
   should; prints the damage of every shot.
+- `python _dev/tools/app_icons.py`: redraws the Android icons, splash images and store icon.
 - `python _dev/tools/tt.py "<query>" "<steps>"`: drives the game headlessly in Chromium (Playwright) and
   takes screenshots, for example
   `python _dev/tools/tt.py "autostart=1&p=cpu,cpu&quality=low&event=cat" "sim:22;;shot:cat"`.
@@ -92,5 +98,5 @@ Like the siblings: run the checks, commit and push, then copy the game into the 
 developer files (PowerShell, with `DrAndiB.github.io` checked out next to this repo):
 
 ```powershell
-robocopy . ..\DrAndiB.github.io\demos\tabletop-towers /MIR /XD .git _dev node_modules out /XF README.md .gitignore
+robocopy . ..\DrAndiB.github.io\demos\tabletop-towers /MIR /XD .git .github _dev app node_modules out /XF README.md .gitignore
 ```

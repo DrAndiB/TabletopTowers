@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tabletop Towers</string>
+    <string name="title_activity_main">Tabletop Towers</string>
+    <string name="package_name">lu.andreasbraun.tabletoptowers</string>
+    <string name="custom_url_scheme">lu.andreasbraun.tabletoptowers</string>
+</resources>

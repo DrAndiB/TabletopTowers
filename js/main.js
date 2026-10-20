@@ -9,6 +9,10 @@ import { TEAM } from './pieces.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
+// Running inside the Android app (Capacitor): no fullscreen button or website link, and the system back
+// button drives the menus (see window.__ttBack below).
+const IN_APP = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+document.documentElement.classList.toggle('in-app', IN_APP);
 const SETTINGS_KEY = 'tabletop-towers.settings.v1';
 const PERS = ['random', ...Object.keys(PERSONALITIES)];
 
@@ -212,6 +216,25 @@ canvas.addEventListener('pointermove', (e) => { if (screen === 'none') game.poin
 canvas.addEventListener('pointerup', () => game.pointerUp());
 canvas.addEventListener('pointercancel', () => game.pointerUp());
 window.addEventListener('resize', () => { R.resize(); game.particles?.setScale(R.renderer.domElement.height * 0.9); });
+// the tab or the app goes to the background: pause a game and silence everything
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (screen === 'none') togglePause();
+    if (sound.ctx && sound.ctx.state === 'running') sound.ctx.suspend();
+    game.keys.clear();
+  } else if (sound.ctx) sound.ensure();
+});
+
+// Android back button (called by the app's MainActivity): pause during a game, one step back in the
+// menus. Returns 'exit' on the title screen, where the app then goes to the background.
+window.__ttBack = () => {
+  if (screen === 'title') return 'exit';
+  if (screen === 'none' || screen === 'pause') togglePause();
+  else if (screen === 'setup') $('#btn-setup-back').click();
+  else if (screen === 'howto') $('#btn-howto-back').click();
+  else if (screen === 'results') toMenu();
+  return 'ok';
+};
 
 // ---------- the loop ----------
 function frame(now) {

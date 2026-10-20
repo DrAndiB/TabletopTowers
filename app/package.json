@@ -1,0 +1,17 @@
+{
+  "name": "tabletop-towers-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Android app build of Tabletop Towers (Capacitor wrapper around the web game in the repository root)",
+  "scripts": {
+    "www": "node build-www.mjs",
+    "sync": "node build-www.mjs && cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

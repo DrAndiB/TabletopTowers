@@ -1,0 +1,78 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace = "lu.andreasbraun.tabletoptowers"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "lu.andreasbraun.tabletoptowers"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // version name from app/package.json; version code from the CI run number (always increasing)
+        versionCode Integer.parseInt(System.getenv("GITHUB_RUN_NUMBER") ?: "1")
+        versionName new groovy.json.JsonSlurper().parse(file("../../package.json")).version
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    signingConfigs {
+        // Preview builds (installed by hand from GitHub) are signed with a fixed key kept in the repository,
+        // so each new preview installs over the previous one. Not for Google Play.
+        preview {
+            storeFile file("../preview.keystore")
+            storePassword "tabletop-towers-preview"
+            keyAlias "preview"
+            keyPassword "tabletop-towers-preview"
+        }
+        // Google Play uploads: the upload key comes from CI secrets (see app/README.md); never committed.
+        if (System.getenv("TT_UPLOAD_KEYSTORE")) {
+            upload {
+                storeFile file(System.getenv("TT_UPLOAD_KEYSTORE"))
+                storePassword System.getenv("TT_UPLOAD_STORE_PASSWORD")
+                keyAlias System.getenv("TT_UPLOAD_KEY_ALIAS")
+                keyPassword System.getenv("TT_UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.preview
+        }
+        release {
+            if (System.getenv("TT_UPLOAD_KEYSTORE")) signingConfig signingConfigs.upload
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

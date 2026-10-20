@@ -1,0 +1,18 @@
+{
+  "appId": "lu.andreasbraun.tabletoptowers",
+  "appName": "Tabletop Towers",
+  "webDir": "www",
+  "backgroundColor": "#1f1a17",
+  "android": {
+    "backgroundColor": "#1f1a17",
+    "allowMixedContent": false,
+    "captureInput": false,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "SystemBars": {
+      "hidden": true,
+      "style": "DARK"
+    }
+  }
+}
