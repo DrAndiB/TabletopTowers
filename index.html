@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tabletop Towers: Andreas Braun</title>
+<meta name="description" content="Two block castles on the kitchen table, spoon catapults, a teddy on each throne. Throw paper balls, erasers and marbles, earn pocket money, fill your piggy banks, keep your toy soldiers happy, and knock the other teddy off his throne. Two players on one screen or against a computer kid.">
+<meta property="og:title" content="Tabletop Towers">
+<meta property="og:description" content="Block castles, spoon catapults and piggy banks on the kitchen table. Knock the other teddy off his throne!">
+<meta name="theme-color" content="#1f1a17">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffc93c'/%3E%3Cpath d='M12 54V26h8v6h6v-6h12v6h6v-6h8v28z' fill='%23e23b2e' stroke='%231f1a17' stroke-width='3' stroke-linejoin='round'/%3E%3Crect x='27' y='40' width='10' height='14' rx='5' fill='%231f1a17'/%3E%3Cpath d='M32 26V10l10 4-10 4' fill='%232f6fe0' stroke='%231f1a17' stroke-width='2.5' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/game.css">
+<link rel="modulepreload" href="vendor/three.bundle.js">
+<link rel="modulepreload" href="vendor/cannon-es.js">
+</head>
+<body data-screen="boot">
+<canvas id="game" aria-label="Game view"></canvas>
+
+<div id="boot"><div class="boot-tower"><i></i><i></i><i></i></div><p>Building castles…</p></div>
+<div id="gpu-hint" role="status" hidden>
+  <p><b>Running on built-in graphics.</b> For smoother play on a laptop with a graphics card: Windows Settings → System → Display → Graphics, add your browser, choose <b>High performance</b>, then restart the browser.</p>
+  <button id="btn-gpu-hint" class="btn small-btn">Got it</button>
+</div>
+
+<div id="hud" class="hidden" aria-live="polite">
+  <div id="topbar">
+    <div class="ccard red" id="card-0"></div>
+    <div id="mid"><div class="mid-row"><button id="btn-hud-pause" class="icon-btn small" aria-label="Pause" title="Pause (Esc or P)"><svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="5" height="16" rx="1.5" fill="currentColor"/></svg></button><div id="round">Round 1</div></div><div id="wind"></div></div>
+    <div class="ccard blue" id="card-1"></div>
+  </div>
+  <div id="banner"></div>
+  <div id="toasts"></div>
+  <div id="shop" class="sheet" hidden></div>
+  <div id="aimbar" class="sheet" hidden></div>
+</div>
+
+<div id="corner">
+  <button id="btn-pause" class="icon-btn" aria-label="Pause" title="Pause (Esc or P)"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><rect x="5" y="4" width="5" height="16" rx="1.5" fill="currentColor"/><rect x="14" y="4" width="5" height="16" rx="1.5" fill="currentColor"/></svg></button>
+  <button id="btn-sound" class="icon-btn" aria-label="Sound on">🔊</button>
+  <button id="btn-fs" class="icon-btn" aria-label="Fullscreen">⛶</button>
+</div>
+
+<!-- Title -->
+<section id="screen-title" class="screen">
+  <div class="title-wrap">
+    <h1 class="logo"><span class="l1">Tabletop</span><span class="l2">Towers</span></h1>
+    <p class="tagline">Block castles on the kitchen table. Spoon catapults, piggy banks and a teddy on each throne: earn your pocket money, keep your toys happy, and knock the other teddy off his throne.</p>
+    <div class="title-buttons">
+      <button id="btn-play" class="btn big yellow">Play <kbd>Enter</kbd></button>
+      <button id="btn-howto" class="btn">How to play</button>
+    </div>
+    <p class="small back"><a href="https://andreasbraun.lu/demos/">← Back to the demos on andreasbraun.lu</a></p>
+  </div>
+</section>
+
+<!-- Setup -->
+<section id="screen-setup" class="screen">
+  <div class="panel setup">
+    <header class="panel-head">
+      <button id="btn-setup-back" class="btn ghost small-btn">← Back</button>
+      <h2>Who's playing?</h2>
+      <button id="btn-setup-howto" class="btn ghost small-btn">How to play</button>
+    </header>
+    <div id="sides" class="sides"></div>
+    <div class="opts">
+      <div class="opt-row"><span>Graphics</span>
+        <div class="seg"><button data-opt="quality" data-val="auto">Auto</button><button data-opt="quality" data-val="low">Low</button><button data-opt="quality" data-val="medium">Medium</button><button data-opt="quality" data-val="high">High</button></div>
+      </div>
+    </div>
+    <footer class="panel-foot">
+      <span class="small">Two players take turns on one screen · Esc or P pauses</span>
+      <button id="btn-start" class="btn big yellow">Build the castles! <kbd>Enter</kbd></button>
+    </footer>
+  </div>
+</section>
+
+<!-- How to play -->
+<section id="screen-howto" class="screen">
+  <div class="panel howto">
+    <header class="panel-head">
+      <button id="btn-howto-back" class="btn ghost small-btn">← Back</button>
+      <h2>How to play</h2>
+      <span></span>
+    </header>
+    <div class="howto-grid">
+      <div class="how"><span class="verb">Win</span><p>Each castle has a <b>teddy on a throne</b> inside its keep. Knock the other teddy off his throne. Careful: if your own teddy falls, you lose.</p></div>
+      <div class="how"><span class="verb">Turn</span><p>Every turn you get <b>pocket money</b>, go to the <b>shop</b>, then <b>fire</b> one shot from your spoon catapult.</p></div>
+      <div class="how"><span class="verb">Aim</span><p>Drag on the table to pull back (or use the arrow keys), then <b>Fire!</b> The dotted line shows how the shot starts. The <b>draft</b> from the window blows it off course.</p></div>
+      <div class="how"><span class="verb">Ammo</span><p><b>Paper balls</b> are cheap but blow about. <b>Erasers</b> bounce. <b>Marbles</b> are dear and go straight through walls.</p></div>
+      <div class="how"><span class="verb">Money</span><p><b>Chores</b> earn a coin or more for every toy not working a catapult, but the toys get grumpy. <b>Piggy banks</b> pay a little every turn plus 10% interest, and coins you don't spend go in them. Smash the other side's piggies: half their coins roll over to you.</p></div>
+      <div class="how"><span class="verb">Toys</span><p>Keep your toy soldiers fed with <b>snacks</b> and not overworked. Happy toys bring friends. Sulky toys skip shots. Unhappy toys walk over to the other castle, and if nobody is left, or they mutiny, you lose.</p></div>
+      <div class="how"><span class="verb">Build</span><p><b>Rebuild</b> knocked-down blocks and the flag, add <b>piggy banks</b>, a <b>back catapult</b> that lobs over your keep, or <b>glue</b> to make your castle sturdier for two enemy shots.</p></div>
+      <div class="how"><span class="verb">Kitchen</span><p>Now and then the kitchen joins in: the cat walks across the table, Grandma visits, it's dinner time…</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- Pause -->
+<section id="screen-pause" class="screen">
+  <div class="panel small-panel">
+    <h2>Paused</h2>
+    <div class="stack">
+      <button id="btn-resume" class="btn big yellow">Resume</button>
+      <button id="btn-restart" class="btn">Start again</button>
+      <button id="btn-quit" class="btn">Quit to menu</button>
+    </div>
+  </div>
+</section>
+
+<!-- Results -->
+<section id="screen-results" class="screen">
+  <div class="panel results-panel">
+    <p class="kicker" id="results-kicker">Round 7</p>
+    <h2 id="results-title">Red castle wins!</h2>
+    <p id="results-reason" class="reason"></p>
+    <div id="results-stats" class="stats"></div>
+    <div class="stack row">
+      <button id="btn-again" class="btn big yellow">Play again <kbd>Enter</kbd></button>
+      <button id="btn-results-menu" class="btn">Menu</button>
+    </div>
+  </div>
+  <div id="confetti" aria-hidden="true"></div>
+</section>
+
+<div id="rotate" aria-hidden="true"><p>Turn your screen sideways for a better view of the table</p></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
